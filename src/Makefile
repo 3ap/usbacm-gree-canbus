@@ -1,20 +1,14 @@
-PROJECT = awesomesauce
+PROJECT = usbacm-gree-canbus
 BUILD_DIR = bin
 
 FREERTOS_DIR = ../FreeRTOS-Kernel
-SHARED_DIR = ../my-common-code
-CFILES = my-project.c
-CFILES += api.c
-AFILES += api-asm.S
+CFILES = main.c
 
-# TODO - you will need to edit these two lines!
 DEVICE=stm32f407vgt6
 OOCD_FILE = board/stm32f4discovery.cfg
 FREERTOS_PORT = GCC/ARM_CM4F
 
 # You shouldn't have to edit anything below here.
-VPATH += $(SHARED_DIR)
-INCLUDES += $(patsubst %,-I%, . $(SHARED_DIR))
 OPENCM3_DIR=../libopencm3
 
 VPATH += $(FREERTOS_DIR)
