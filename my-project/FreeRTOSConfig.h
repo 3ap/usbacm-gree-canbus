@@ -40,16 +40,10 @@
  * See http://www.freertos.org/a00110.html
  *----------------------------------------------------------*/
 
-/* Ensure stdint is only used by the compiler, and not the assembler. */
-#ifdef __ICCARM__
-	#include <stdint.h>
-	extern uint32_t SystemCoreClock;
-#endif
-
 #define configUSE_PREEMPTION			1
-#define configUSE_IDLE_HOOK				1
-#define configUSE_TICK_HOOK				1
-#define configCPU_CLOCK_HZ				( SystemCoreClock )
+#define configUSE_IDLE_HOOK				0
+#define configUSE_TICK_HOOK				0
+#define configCPU_CLOCK_HZ				( 120000000 )
 #define configTICK_RATE_HZ				( ( TickType_t ) 1000 )
 #define configMAX_PRIORITIES			( 5 )
 #define configMINIMAL_STACK_SIZE		( ( unsigned short ) 130 )
@@ -60,9 +54,9 @@
 #define configIDLE_SHOULD_YIELD			1
 #define configUSE_MUTEXES				1
 #define configQUEUE_REGISTRY_SIZE		8
-#define configCHECK_FOR_STACK_OVERFLOW	2
+#define configCHECK_FOR_STACK_OVERFLOW	0
 #define configUSE_RECURSIVE_MUTEXES		1
-#define configUSE_MALLOC_FAILED_HOOK	1
+#define configUSE_MALLOC_FAILED_HOOK	0
 #define configUSE_APPLICATION_TASK_TAG	0
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configGENERATE_RUN_TIME_STATS	0
@@ -88,12 +82,7 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelay				1
 
 /* Cortex-M specific definitions. */
-#ifdef __NVIC_PRIO_BITS
-	/* __BVIC_PRIO_BITS will be specified when CMSIS is being used. */
-	#define configPRIO_BITS       		__NVIC_PRIO_BITS
-#else
-	#define configPRIO_BITS       		4        /* 15 priority levels */
-#endif
+#define configPRIO_BITS       		4        /* 15 priority levels */
 
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
@@ -116,11 +105,11 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 header file. */
 #define configASSERT( x ) if( ( x ) == 0 ) { taskDISABLE_INTERRUPTS(); for( ;; ); }
 
-/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
-standard names. */
-#define vPortSVCHandler SVC_Handler
-#define xPortPendSVHandler PendSV_Handler
-#define xPortSysTickHandler SysTick_Handler
+/* Definitions that map the FreeRTOS port interrupt handlers to their
+libopencm3 standard names. */
+#define vPortSVCHandler sv_call_handler
+#define xPortPendSVHandler pend_sv_handler
+#define xPortSysTickHandler sys_tick_handler
 
 #endif /* FREERTOS_CONFIG_H */
 
