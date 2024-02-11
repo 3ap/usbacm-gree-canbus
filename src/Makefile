@@ -4,8 +4,7 @@ BUILD_DIR = bin
 FREERTOS_DIR = ../FreeRTOS-Kernel
 CFILES = main.c
 
-DEVICE=stm32f407vgt6
-OOCD_FILE = board/stm32f4discovery.cfg
+DEVICE=stm32g431c8t6
 FREERTOS_PORT = GCC/ARM_CM4F
 
 # You shouldn't have to edit anything below here.
@@ -20,3 +19,6 @@ INCLUDES += $(patsubst %,-I%, . $(FREERTOS_DIR)/include $(FREERTOS_DIR)/portable
 include $(OPENCM3_DIR)/mk/genlink-config.mk
 include ../rules.mk
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
+
+dfu:
+	dfu-util -w -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D $(PROJECT).bin -R
