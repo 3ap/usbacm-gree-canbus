@@ -21,4 +21,4 @@ include ../rules.mk
 include $(OPENCM3_DIR)/mk/genlink-rules.mk
 
 dfu:
-	dfu-util -w -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D $(PROJECT).bin -R
+	dfu-util -w -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000:leave -D $(PROJECT).bin -R
