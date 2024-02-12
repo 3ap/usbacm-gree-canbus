@@ -8,6 +8,9 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 
+#include <libopencm3/cm3/scb.h>
+#include <libopencm3/cm3/vector.h>
+
 #include <alloca.h>
 #include <sys/param.h>
 #include <string.h>
@@ -328,6 +331,20 @@ static void main_task(void *args __attribute__((unused)))
 }
 
 int main(void) {
+    /*
+     * It's required to explicitly set the pointer to our vector
+     * table at boot because the application could start in DFU mode
+     * immediately after flashing firmware, and in this case SCB_VTOR
+     * is affected by bootROM and points to its vector table instead
+     * of ours.
+     *
+     * Moreover, it's incorrect to set it to 0x0000_0000, because in
+     * DFU mode it's not aliased with flash memory.
+     */
+
+    /* Set Vector Table Offset to our memory based vector table */
+    SCB_VTOR = (uint32_t)&vector_table;
+
     rcc_clock_setup_pll(&rcc_hsi_configs[RCC_CLOCK_3V3_96MHZ]);
     rcc_osc_on(RCC_HSI48);
     rcc_wait_for_osc_ready(RCC_HSI48);
