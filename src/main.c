@@ -8,9 +8,49 @@
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
 
+#include <alloca.h>
+#include <sys/param.h>
+#include <string.h>
+
+/*
+ * Structs
+ */
+
+typedef struct __attribute((packed))
+{
+    uint8_t x0; /* AA */
+    uint8_t x1; /* AA */
+    uint8_t sz   : 4;
+    uint8_t type : 4;
+    union
+    {
+        struct
+        {
+            uint16_t addr16_BE;
+            uint8_t data_addr16[];
+        };
+        struct
+        {
+            uint32_t addr32_BE;
+            uint8_t data_addr32[];
+        };
+    };
+} gree_can_t;
+
+#define CAN_MAX_PAYLOAD_SIZE_BYTES 8
+#define GREE_CAN_MAX_SIZE (sizeof(gree_can_t) + CAN_MAX_PAYLOAD_SIZE_BYTES + 1/*CS*/ + 1/*END*/)
+
+typedef struct __attribute((packed))
+{
+    uint8_t sz;
+    uint32_t addr;
+    uint8_t data[CAN_MAX_PAYLOAD_SIZE_BYTES];
+} can_t;
+
 /*
  * Global variables
  */
+static QueueHandle_t queue_CAN_RX;
 static uint8_t usbd_control_buffer[128];
 static const struct usb_device_descriptor dev = {
     .bLength = USB_DT_DEVICE_SIZE,
@@ -154,6 +194,22 @@ static const char * usb_strings[] = {
     "DEMO",
 };
 
+/*
+ * Code
+ */
+
+static uint8_t calc_cs( uint8_t *raw, uint8_t sz )
+{
+    uint8_t i;
+    uint8_t cs;
+
+    cs=0;
+    for( i=0; i<sz; i++ )
+        cs ^= raw[i];
+
+    return cs;
+}
+
 static enum usbd_request_return_codes cdcacm_control_request(usbd_device *usbd_dev,
     struct usb_setup_data *req, uint8_t **buf, uint16_t *len,
     void (**complete)(usbd_device *usbd_dev, struct usb_setup_data *req))
@@ -209,7 +265,42 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
                 cdcacm_control_request);
 }
 
-static void main_task(void *args __attribute__((unused))) {
+static void gree_can_send_event(usbd_device *usbd_dev, can_t *buf)
+{
+    uint8_t sz;
+    gree_can_t *frame;
+
+    sz = 2/*x0,x1*/ + 1/*sz,type*/
+         + sizeof(frame->addr32_BE) + buf->sz
+         + 1/*CRC*/ + 1/*x2*/;
+
+    frame = alloca( sz );
+
+    frame->x0 = 0xAA;
+    frame->x1 = 0xAA;
+    frame->sz = buf->sz;
+    frame->type = 0x8;
+    frame->addr32_BE = __bswap32(buf->addr);
+
+    memcpy( frame->data_addr32, buf->data, buf->sz );
+    frame->data_addr32[frame->sz] = calc_cs( ((uint8_t *) frame) + 2 /* skip x0, x1 */,
+                                             sz - 2/*x0,x1*/ - 1/*CRC*/ - 1/*x2*/ );
+    frame->data_addr32[frame->sz+1] = 0xFF;
+
+    while (usbd_ep_write_packet(usbd_dev, 0x82, (char *) frame, sz) == 0);
+}
+
+static void can_rx_queue_poll(usbd_device *usbd_dev)
+{
+    can_t buf;
+    while (xQueueReceive(queue_CAN_RX, &buf, 0) == pdTRUE)
+    {
+        gree_can_send_event(usbd_dev, &buf);
+    }
+}
+
+static void usbcdc_acm_task(void *args __attribute__((unused)))
+{
     usbd_device *usbd_dev;
 
     usbd_dev = usbd_init(&st_usbfs_v2_usb_driver, &dev, config,
@@ -220,6 +311,19 @@ static void main_task(void *args __attribute__((unused))) {
     while (1)
     {
         usbd_poll(usbd_dev);
+        if(queue_CAN_RX)
+            can_rx_queue_poll(usbd_dev);
+    }
+}
+
+static void main_task(void *args __attribute__((unused)))
+{
+    queue_CAN_RX = xQueueCreate( 16, sizeof(can_t) );
+    can_t buf = { .data = {0xDE, 0xAD, 0xBE, 0xEF}, .sz = 4, .addr = 0xAABBCCDD };
+    while (1)
+    {
+        xQueueSend(queue_CAN_RX, &buf, pdMS_TO_TICKS(1 * 1000));
+        vTaskDelay(pdMS_TO_TICKS(5 * 1000));
     }
 }
 
@@ -229,6 +333,7 @@ int main(void) {
     rcc_wait_for_osc_ready(RCC_HSI48);
 
     // crs_autotrim_usb_enable();
+    xTaskCreate(usbcdc_acm_task, "ACM", 1024, NULL, configMAX_PRIORITIES-1, NULL);
     xTaskCreate(main_task, "MAIN", 50, NULL, configMAX_PRIORITIES-1, NULL);
     vTaskStartScheduler();
     for (;;);
