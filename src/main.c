@@ -345,7 +345,10 @@ int main(void) {
     /* Set Vector Table Offset to our memory based vector table */
     SCB_VTOR = (uint32_t)&vector_table;
 
+    /* Configure internal oscillator to increate the frequency to 96MHz */
     rcc_clock_setup_pll(&rcc_hsi_configs[RCC_CLOCK_3V3_96MHZ]);
+
+    /* Enable HSI48 to make USB IP core works */
     rcc_osc_on(RCC_HSI48);
     rcc_wait_for_osc_ready(RCC_HSI48);
 
