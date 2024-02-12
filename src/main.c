@@ -16,6 +16,10 @@
 #include <string.h>
 
 /*
+ * Constants
+ */
+
+/*
  * Structs
  */
 
@@ -326,6 +330,11 @@ static void main_task(void *args __attribute__((unused)))
     while (1)
     {
         xQueueSend(queue_CAN_RX, &buf, pdMS_TO_TICKS(1 * 1000));
+
+        gpio_clear(GPIOA, GPIO0); /* Turn on WORD LED */
+        vTaskDelay(pdMS_TO_TICKS(10));
+        gpio_set(GPIOA, GPIO0);   /* Turn off WORD LED */
+
         vTaskDelay(pdMS_TO_TICKS(5 * 1000));
     }
 }
@@ -345,12 +354,19 @@ int main(void) {
     /* Set Vector Table Offset to our memory based vector table */
     SCB_VTOR = (uint32_t)&vector_table;
 
-    /* Configure internal oscillator to increate the frequency to 96MHz */
+    /* Configure internal oscillator to increate the CPU frequency to 96MHz */
     rcc_clock_setup_pll(&rcc_hsi_configs[RCC_CLOCK_3V3_96MHZ]);
 
     /* Enable HSI48 to make USB IP core works */
     rcc_osc_on(RCC_HSI48);
     rcc_wait_for_osc_ready(RCC_HSI48);
+
+    /* Enable GPIOA for STAT_LED & WORD_LED */
+    rcc_periph_clock_enable(RCC_GPIOA);
+    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO15); /* STAT LED */
+    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0);  /* WORD LED */
+    gpio_set(GPIOA, GPIO15); /* Turn off STAT LED */
+    gpio_set(GPIOA, GPIO0);  /* Turn off WORD LED */
 
     // crs_autotrim_usb_enable();
     xTaskCreate(usbcdc_acm_task, "ACM", 1024, NULL, configMAX_PRIORITIES-1, NULL);
