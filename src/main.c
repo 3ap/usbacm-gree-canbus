@@ -4,6 +4,7 @@
 
 #include <libopencm3/stm32/gpio.h>
 #include <libopencm3/stm32/rcc.h>
+#include <libopencm3/stm32/fdcan.h>
 
 #include <libopencm3/usb/usbd.h>
 #include <libopencm3/usb/cdc.h>
@@ -339,6 +340,36 @@ static void main_task(void *args __attribute__((unused)))
     }
 }
 
+static void can_setup(void)
+{
+    int rc;
+
+    /* Configure CAN RX (PB8) and CAN TX (PB9) */
+    rcc_periph_clock_enable(RCC_GPIOB);
+    gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO8|GPIO9);
+    gpio_set_af(GPIOB, GPIO_AF9, GPIO8|GPIO9);
+
+    /* Enable FDCAN & use PCLK as a clock source for FDCAN */
+    rcc_periph_clock_enable(RCC_FDCAN);
+    RCC_CCIPR &= ~(RCC_CCIPR_SEL_MASK << RCC_CCIPR_FDCANSEL_SHIFT);
+    RCC_CCIPR |= (RCC_CCIPR_FDCANSEL_PCLK << RCC_CCIPR_FDCANSEL_SHIFT);
+
+    /* Switch to configuration mode */
+    rc = fdcan_init(CAN1, 1000);
+    if (rc != FDCAN_E_OK)
+        return;
+
+    /* 170 MHz base clock, SJW=1, TS1=14, TS=2, Prescaler=200 -> bitrate 50000 */
+    fdcan_set_can(CAN1,
+             true, true, false, false,
+             0, 13, 1, 199 );
+
+    /* Switch to running mode */
+    fdcan_start(CAN1, FDCAN_CCCR_INIT_TIMEOUT);
+    if (rc != FDCAN_E_OK)
+        return;
+}
+
 int main(void) {
     /*
      * It's required to explicitly set the pointer to our vector
@@ -358,6 +389,9 @@ int main(void) {
     RCC_ICSCR = 0x409B0000; /* BootROM changes this register in DFU mode,
                                and because of it 170MHz becomes 180Mhz */
     rcc_clock_setup_pll(&rcc_hsi_configs[RCC_CLOCK_3V3_170MHZ]);
+
+    /* Setup FDCAN */
+    can_setup();
 
     /* Enable HSI48 to make USB IP core works */
     rcc_osc_on(RCC_HSI48);
