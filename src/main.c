@@ -397,12 +397,10 @@ int main(void) {
     rcc_osc_on(RCC_HSI48);
     rcc_wait_for_osc_ready(RCC_HSI48);
 
-    /* Enable GPIOA for STAT_LED & WORD_LED */
+    /* Enable GPIOA, setup and turn off WORD LED & STAT LED */
     rcc_periph_clock_enable(RCC_GPIOA);
-    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO15); /* STAT LED */
-    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0);  /* WORD LED */
-    gpio_set(GPIOA, GPIO15); /* Turn off STAT LED */
-    gpio_set(GPIOA, GPIO0);  /* Turn off WORD LED */
+    gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0|GPIO15);
+    gpio_set(GPIOA, GPIO0|GPIO15);
 
     // crs_autotrim_usb_enable();
     xTaskCreate(usbcdc_acm_task, "ACM", 1024, NULL, configMAX_PRIORITIES-1, NULL);
