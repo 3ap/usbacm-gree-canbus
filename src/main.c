@@ -48,7 +48,7 @@ typedef struct __attribute((packed))
 #define CAN_MAX_PAYLOAD_SIZE_BYTES 8
 #define GREE_CAN_MAX_SIZE (sizeof(gree_can_t) + CAN_MAX_PAYLOAD_SIZE_BYTES + 1/*CS*/ + 1/*END*/)
 
-typedef struct __attribute((packed))
+typedef struct
 {
     uint8_t sz;
     uint32_t addr;
@@ -327,16 +327,22 @@ static void usbcdc_acm_task(void *args __attribute__((unused)))
 static void main_task(void *args __attribute__((unused)))
 {
     queue_CAN_RX = xQueueCreate( 16, sizeof(can_t) );
-    can_t buf = { .data = {0xDE, 0xAD, 0xBE, 0xEF}, .sz = 4, .addr = 0xAABBCCDD };
-    while (1)
+
+    can_t buf;
+    bool ext;
+    bool rtr;
+
+    while(1)
     {
-        xQueueSend(queue_CAN_RX, &buf, pdMS_TO_TICKS(1 * 1000));
+        if (fdcan_receive(CAN1, FDCAN_FIFO0, true,
+                          &buf.addr, &ext, NULL, NULL,
+                          &buf.sz, buf.data, NULL) == FDCAN_E_OK)
+        {
+            if (ext == true)
+                xQueueSend(queue_CAN_RX, &buf, pdMS_TO_TICKS(1 * 1000));
+        }
 
-        gpio_clear(GPIOA, GPIO0); /* Turn on WORD LED */
         vTaskDelay(pdMS_TO_TICKS(10));
-        gpio_set(GPIOA, GPIO0);   /* Turn off WORD LED */
-
-        vTaskDelay(pdMS_TO_TICKS(5 * 1000));
     }
 }
 
@@ -359,6 +365,12 @@ static void can_setup(void)
     if (rc != FDCAN_E_OK)
         return;
 
+    /* Enable CAN RX FIFO 0 new message interrupt */
+    nvic_set_priority(NVIC_FDCAN1_IT0_IRQ, 1);
+    nvic_enable_irq(NVIC_FDCAN1_IT0_IRQ);
+    FDCAN_ILE(CAN1) |= FDCAN_ILE_INT0;
+    FDCAN_IE(CAN1) |= FDCAN_IE_RF0NE;
+
     /* 170 MHz base clock, SJW=1, TS1=14, TS=2, Prescaler=200 -> bitrate 50000 */
     fdcan_set_can(CAN1,
              true, true, false, false,
@@ -368,6 +380,15 @@ static void can_setup(void)
     fdcan_start(CAN1, FDCAN_CCCR_INIT_TIMEOUT);
     if (rc != FDCAN_E_OK)
         return;
+}
+
+void fdcan1_it0_isr(void)
+{
+    /* TODO: send task notification to main task to read from FIFO */
+    gpio_toggle(GPIOA, GPIO0); /* Toggle WORD LED */
+
+    /* Clear all flags */
+    FDCAN_IR(CAN1) = FDCAN_IR(CAN1);
 }
 
 int main(void) {
