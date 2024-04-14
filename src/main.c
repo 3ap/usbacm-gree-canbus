@@ -76,6 +76,7 @@ static const struct usb_device_descriptor dev = {
     .iSerialNumber = 3,
     .bNumConfigurations = 1,
 };
+int ready = 0;
 
 /*
  * This notification endpoint isn't implemented. According to CDC spec it's
@@ -233,11 +234,13 @@ static enum usbd_request_return_codes cdcacm_control_request(usbd_device *usbd_d
          * even though it's optional in the CDC spec, and we don't
          * advertise it in the ACM functional descriptor.
          */
+        ready = 1;
         return USBD_REQ_HANDLED;
     case USB_CDC_REQ_SET_LINE_CODING:
         if (*len < sizeof(struct usb_cdc_line_coding))
             return USBD_REQ_NOTSUPP;
 
+        ready = 1;
         return USBD_REQ_HANDLED;
     }
     return USBD_REQ_NOTSUPP;
@@ -326,7 +329,8 @@ static void can_rx_queue_poll(usbd_device *usbd_dev)
     can_t buf;
     while (xQueueReceive(queue_CAN_RX, &buf, 0) == pdTRUE)
     {
-        gree_can_send_event(usbd_dev, &buf);
+        if (ready)
+            gree_can_send_event(usbd_dev, &buf);
     }
 }
 
