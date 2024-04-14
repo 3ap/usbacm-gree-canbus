@@ -273,6 +273,29 @@ static void cdcacm_set_config(usbd_device *usbd_dev, uint16_t wValue)
                 cdcacm_control_request);
 }
 
+static uint32_t convert_to_gree_addr( uint32_t addr )
+{
+    uint8_t b[4];
+    uint8_t nb[4];
+
+    nb[0] = nb[1] = nb[2] = nb[3] = 0;
+
+    b[0] = (addr >>  0) & 0xFF;
+    b[1] = (addr >>  8) & 0xFF;
+    b[2] = (addr >> 16) & 0xFF;
+    b[3] = (addr >> 24) & 0xFF;
+
+    nb[0]  = b[0] & 0x7F;
+    nb[1] |= ((b[0] >> 7) & 0x1);
+    nb[1] |= (b[1] & 0x3F) << 1;
+    nb[2] |= ((b[1] >> 6) & 0x3);
+    nb[2] |= (b[2] & 0x1F) << 2;
+    nb[3] |= ((b[2] >> 5) & 0x7);
+    nb[3] |= (b[3] & 0x1F) << 3;
+
+    return nb[0] | (nb[1] << 8) | (nb[2] << 16) | (nb[3] << 24);
+}
+
 static void gree_can_send_event(usbd_device *usbd_dev, can_t *buf)
 {
     uint8_t sz;
@@ -288,7 +311,7 @@ static void gree_can_send_event(usbd_device *usbd_dev, can_t *buf)
     frame->x1 = 0xAA;
     frame->sz = buf->sz;
     frame->type = 0x8;
-    frame->addr32_BE = __bswap32(buf->addr);
+    frame->addr32_BE = __bswap32(convert_to_gree_addr(buf->addr));
 
     memcpy( frame->data_addr32, buf->data, buf->sz );
     frame->data_addr32[frame->sz] = calc_cs( ((uint8_t *) frame) + 2 /* skip x0, x1 */,
