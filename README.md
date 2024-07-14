@@ -1,18 +1,13 @@
-Easy "clone and go" repository for a libopencm3 based project.
+Alternative firmware based on libopencm3 for Makerbase CANable 2.0
+USB Adapter ([schematics][schematics], [aliexpress][aliexpress])
+based on STM32G4 MCU + TJA105T CANbus transceiver
 
-# Instructions
- 1. git clone --recurse-submodules https://github.com/libopencm3/libopencm3-template.git your-project
- 2. cd your-project
- 3. make -C libopencm3 # (Only needed once)
- 4. make -C my-project
+It uses USB CDC-ACM (taken from [libopencm3-examples][usbacm] and
+adapted for using with STM32G4) as a transport for CANbus frames in
+the same proprietary format as used by [Gree Data Converter
+(ZTS6L)][ebay]
 
-If you have an older git, or got ahead of yourself and skipped the ```--recurse-submodules```
-you can fix things by running ```git submodule update --init``` (This is only needed once)
-
-# Directories
-* my-project contains your application
-* my-common-code contains something shared.
-
-# As a template
-You should replace this with your _own_ README if you are using this
-as a template.
+[schematics]: https://raw.githubusercontent.com/makerbase-mks/CANable-MKS/main/Hardware/MKS%20CANable%20V2.0/MKS%20CANable%20V2.0_001%20schematic.pdf
+[aliexpress]: https://www.aliexpress.com/item/1005005455241016.html
+[ebay]: https://www.ebay.com/itm/203692017680
+[usbacm]: https://github.com/libopencm3/libopencm3-examples/blob/master/examples/stm32/f3/stm32f3-discovery/usb_cdcacm/cdcacm.c
